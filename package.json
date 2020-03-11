@@ -1,0 +1,22 @@
+{
+  "name": "test-grib",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "better-sqlite3": "^6.0.1",
+    "node-bluetooth": "^1.2.6",
+    "node-storage": "0.0.9",
+    "pigpio": "^3.0.0",
+    "push-receiver": "^2.1.0",
+    "request-promise": "^4.2.5",
+    "rpi-wifi-connection": "^1.0.14",
+    "yargs": "^15.3.0"
+  }
+}
