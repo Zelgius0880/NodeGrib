@@ -1,8 +1,11 @@
 const http = require('http');
 
-//const Gpio = require('pigpio').Gpio;
+const Gpio = require('pigpio').Gpio;
 
-//const motor = new Gpio(17, {mode: Gpio.OUTPUT});
+const motor = new Gpio(5, {mode: Gpio.OUTPUT});
+const green = new Gpio(17, {mode: Gpio.OUTPUT});
+const red = new Gpio(27, {mode: Gpio.OUTPUT});
+const blue = new Gpio(22, {mode: Gpio.OUTPUT});
 
 const Wifi = require('rpi-wifi-connection');
 const bluetooth = require('node-bluetooth');
@@ -51,19 +54,27 @@ function setUpWifi(ssid, psk) {
 }
 
 function setLedToConnected() {
-
+    blue.digitalWrite(0);
+    red.digitalWrite(0);
+    green.digitalWrite(1)
 }
 
 function setLedToDisconnected() {
-
+    blue.digitalWrite(0);
+    red.digitalWrite(1);
+    green.digitalWrite(0)
 }
 
 function setLedToProcessing() {
-
+    blue.digitalWrite(0);
+    red.digitalWrite(1);
+    green.digitalWrite(1)
 }
 
 function setLedToBluetooth() {
-
+    blue.digitalWrite(1);
+    red.digitalWrite(0);
+    green.digitalWrite(0)
 }
 
 //sudo apt-get install libbluetooth-dev
@@ -125,15 +136,6 @@ if (!senderId) {
     return;
 }
 
-
-function getIds() {
-    let ids = store.get("fcm.ids");
-    if (ids === undefined)
-        return [];
-    else
-        return [];
-        //return ids;
-}
 
 (async () => {
     // First time
