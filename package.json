@@ -11,6 +11,7 @@
   "license": "ISC",
   "dependencies": {
     "better-sqlite3": "^6.0.1",
+    "firebase": "^7.11.0",
     "node-bluetooth": "^1.2.6",
     "node-storage": "0.0.9",
     "pigpio": "^3.0.0",

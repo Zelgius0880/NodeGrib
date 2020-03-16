@@ -1,4 +1,5 @@
 const http = require('http');
+/*
 
 const Gpio = require('pigpio').Gpio;
 
@@ -6,6 +7,7 @@ const motor = new Gpio(5, {mode: Gpio.OUTPUT});
 const green = new Gpio(17, {mode: Gpio.OUTPUT});
 const red = new Gpio(27, {mode: Gpio.OUTPUT});
 const blue = new Gpio(22, {mode: Gpio.OUTPUT});
+*/
 
 const Wifi = require('rpi-wifi-connection');
 const bluetooth = require('node-bluetooth');
@@ -13,16 +15,28 @@ const {register, listen} = require('push-receiver');
 const Storage = require('node-storage');
 const fs = require("fs");
 const dao = require("./dao.js");
+const firebase = require("firebase");
+const firebaseConfig = require("./local-env");
+
+// Required for side-effects
+require("firebase/functions");
+firebase.initializeApp(firebaseConfig.config);
 
 const store = new Storage('store');
 
 async function getStatus() {
     let wifi = new Wifi();
-    return await wifi.getState().catch(
+    let wifiConnected = await wifi.getState().catch(
         (err) => {
             console.log(err);
-            return false
+            //return false
         });
+
+    let c = store.get("fcm.credentials");
+    let token = c.fcm.token; // Token to use to send notifications
+    let serverRegistered = await firebase.functions().httpsCallable('register')({token: token});
+
+    return wifiConnected && serverRegistered.data === "OK"
 }
 
 function moveServo(duty) {
@@ -54,27 +68,43 @@ function setUpWifi(ssid, psk) {
 }
 
 function setLedToConnected() {
-    blue.digitalWrite(0);
-    red.digitalWrite(0);
-    green.digitalWrite(1)
+    try {
+        blue.digitalWrite(0);
+        red.digitalWrite(0);
+        green.digitalWrite(1)
+    } catch (e) {
+        //console.log(e)
+    }
 }
 
 function setLedToDisconnected() {
-    blue.digitalWrite(0);
-    red.digitalWrite(1);
-    green.digitalWrite(0)
+    try {
+        blue.digitalWrite(0);
+        red.digitalWrite(1);
+        green.digitalWrite(0)
+    } catch (e) {
+        //console.log(e)
+    }
 }
 
 function setLedToProcessing() {
-    blue.digitalWrite(0);
-    red.digitalWrite(1);
-    green.digitalWrite(1)
+    try {
+        blue.digitalWrite(0);
+        red.digitalWrite(1);
+        green.digitalWrite(1)
+    } catch (e) {
+        //console.log(e)
+    }
 }
 
 function setLedToBluetooth() {
-    blue.digitalWrite(1);
-    red.digitalWrite(0);
-    green.digitalWrite(0)
+    try {
+        blue.digitalWrite(1);
+        red.digitalWrite(0);
+        green.digitalWrite(0)
+    } catch (e) {
+        //console.log(e)
+    }
 }
 
 //sudo apt-get install libbluetooth-dev
@@ -156,7 +186,18 @@ if (!senderId) {
     console.log('Use this following token to send a notification', fcmToken);
     // persistentIds is the list of notification ids received to avoid receiving all already received notifications on start.
 
+
+    getStatus().then((isConnected) => {
+        console.log("Connected: " + isConnected);
+
+        if (isConnected) setLedToConnected();
+        else setLedToDisconnected();
+
+        moveServoToStart()
+    });
+
     await listen({...credentials, persistentIds}, onNotification);
+
 })();
 
 // Called on new notification
@@ -169,14 +210,14 @@ function onNotification({notification, persistentId}) {
     let s = persistentId.split(":");
     s = s[1].split("%");
     let stamp = s[0];
-    let notifDate = new Date(Number(stamp/1000));
+    let notifDate = new Date(Number(stamp / 1000));
 
     let date = new Date();
     date.setMinutes(date.getMinutes() - 5);
 
     dao.insertPersistentIds(persistentId);
 
-    if(date.getTime() <= notifDate.getTime()) {
+    if (date.getTime() <= notifDate.getTime()) {
 
         moveServoToEnd();
 
@@ -187,15 +228,6 @@ function onNotification({notification, persistentId}) {
 }
 
 http.createServer(function (req, res) {
-
-    getStatus().then((isConnected) => {
-        console.log("Connected: " + isConnected);
-
-        if (isConnected) setLedToConnected();
-        else setLedToDisconnected();
-
-        moveServoToStart()
-    });
 
     res.writeHead(200, {'Content-Type': 'text/plain'});
     res.write('Hello World!');
