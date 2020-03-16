@@ -34,9 +34,12 @@ async function getStatus() {
 
     let c = store.get("fcm.credentials");
     let token = c.fcm.token; // Token to use to send notifications
-    let serverRegistered = await firebase.functions().httpsCallable('register')({token: token});
+    let serverRegistered = await firebase.functions().httpsCallable('register')({token: token})
+        .catch(e => {
+            console.log(e)
+        });
 
-    return wifiConnected && serverRegistered.data === "OK"
+    return wifiConnected && !serverRegistered.error;
 }
 
 function moveServo(duty) {
@@ -223,7 +226,7 @@ function onNotification({notification, persistentId}) {
 
         setTimeout(() => {
             moveServoToStart()
-        }, 500)
+        }, 3000)
     }
 }
 
