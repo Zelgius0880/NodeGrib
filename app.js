@@ -182,13 +182,12 @@ function onNotification({notification, persistentId}) {
 
         setTimeout(() => {
             moveServoToStart()
-        }, 500)
+        }, 5000)
     }
 }
 
-http.createServer(function (req, res) {
-
-    getStatus().then((isConnected) => {
+setLedToDisconnected();
+getStatus().then((isConnected) => {
         console.log("Connected: " + isConnected);
 
         if (isConnected) setLedToConnected();
@@ -196,6 +195,8 @@ http.createServer(function (req, res) {
 
         moveServoToStart()
     });
+
+http.createServer(function (req, res) {
 
     res.writeHead(200, {'Content-Type': 'text/plain'});
     res.write('Hello World!');
