@@ -11,11 +11,13 @@
   "license": "ISC",
   "dependencies": {
     "better-sqlite3": "^6.0.1",
-    "firebase": "^7.11.0",
+    "bluetooth-serial-port": "^2.2.7",
+    "firebase": "^7.12.0",
     "node-bluetooth": "^1.2.6",
     "node-storage": "0.0.9",
     "pigpio": "^3.0.0",
     "push-receiver": "^2.1.0",
+    "request": "^2.88.2",
     "request-promise": "^4.2.5",
     "rpi-wifi-connection": "^1.0.14",
     "yargs": "^15.3.0"

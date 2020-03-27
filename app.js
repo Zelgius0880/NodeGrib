@@ -1,40 +1,34 @@
 const http = require('http');
-/*
-
-const Gpio = require('pigpio').Gpio;
-
-const motor = new Gpio(5, {mode: Gpio.OUTPUT});
-const green = new Gpio(17, {mode: Gpio.OUTPUT});
-const red = new Gpio(27, {mode: Gpio.OUTPUT});
-const blue = new Gpio(22, {mode: Gpio.OUTPUT});
-*/
 
 const Wifi = require('rpi-wifi-connection');
-const bluetooth = require('node-bluetooth');
+// bluetooth = require('node-bluetooth');
 const {register, listen} = require('push-receiver');
 const Storage = require('node-storage');
 const fs = require("fs");
 const dao = require("./dao.js");
-const firebase = require("firebase");
-const firebaseConfig = require("./local-env");
-
-// Required for side-effects
-require("firebase/functions");
-firebase.initializeApp(firebaseConfig.config);
+const led = require("./led");
+const serverRequest = require("./serverRequest");
 
 const store = new Storage('store');
 
+
+var connected = false;
+
 async function getStatus() {
     let wifi = new Wifi();
-    let wifiConnected = await wifi.getState().catch(
+
+
+    let wifiConnected = false
+    
+    wifiConnected = await wifi.getState().catch(
         (err) => {
             console.log(err);
-            //return false
         });
 
+    
     let c = store.get("fcm.credentials");
-    let token = c.fcm.token; // Token to use to send notifications
-    let serverRegistered = await firebase.functions().httpsCallable('register')({token: token})
+    let serverRegistered = {error: true};
+    serverRegistered = serverRequest.registerToken(c.fcm.token)  // Token to use to send notifications
         .catch(e => {
             console.log(e)
         });
@@ -42,94 +36,70 @@ async function getStatus() {
     return wifiConnected && !serverRegistered.error;
 }
 
-function moveServo(duty) {
-    let length = duty * 20 / 100;
-    try {
-        motor.servoWrite(length * 1000) // pulse is in µs
-    } catch (e) {
-        //console.log(e)
-    }
-}
-
-function moveServoToStart() {
-    moveServo(2.5)
-}
-
-function moveServoToEnd() {
-    moveServo(12.5)
-}
-
 function setUpWifi(ssid, psk) {
     let wifi = new Wifi();
     wifi.connect({ssid: ssid, psk: psk}).then(() => {
         console.log('Connected to network.');
-        setLedToConnected()
+        led.setLedToConnected()
+        connected = true;
+        //btSerial.close();
     }).catch((error) => {
         console.log(error);
-        setLedToDisconnected()
+        led.setLedToDisconnected()
     });
 }
 
-function setLedToConnected() {
-    try {
-        blue.digitalWrite(0);
-        red.digitalWrite(0);
-        green.digitalWrite(1)
-    } catch (e) {
-        //console.log(e)
-    }
-}
-
-function setLedToDisconnected() {
-    try {
-        blue.digitalWrite(0);
-        red.digitalWrite(1);
-        green.digitalWrite(0)
-    } catch (e) {
-        //console.log(e)
-    }
-}
-
-function setLedToProcessing() {
-    try {
-        blue.digitalWrite(0);
-        red.digitalWrite(1);
-        green.digitalWrite(1)
-    } catch (e) {
-        //console.log(e)
-    }
-}
-
-function setLedToBluetooth() {
-    try {
-        blue.digitalWrite(1);
-        red.digitalWrite(0);
-        green.digitalWrite(0)
-    } catch (e) {
-        //console.log(e)
-    }
-}
 
 //sudo apt-get install libbluetooth-dev
+/*
+var CHANNEL = 10; // My service channel. Defaults to 1 if omitted.
+var UUID = '38e851bc-7144-44b4-9cd8-80549c6f2912'; // My own service UUID. Defaults to '1101' if omitted
 
-// create bluetooth device instance
-const device = new bluetooth.DeviceINQ();
+server.on('data', function(buffer) {
+    console.log('Received data from client: ' + buffer);
 
-device
-    .on('finished', console.log.bind(console, 'finished'))
+    // ...
+
+    console.log('Sending data to the client');
+    server.write(Buffer.from('...'), function (err, bytesWritten) {
+        if (err) {
+            console.log('Error!');
+        } else {
+            console.log('Send ' + bytesWritten + ' to the client!');
+        }
+    });
+});
+
+server.listen(function (clientAddress) {
+    console.log('Client: ' + clientAddress + ' connected!');
+}, function(error){
+    console.error("Something wrong happened!:" + error);
+}, /*{uuid: UUID, channel: CHANNEL} );
+*/
+
+/*btSerial
+    .on('finished', () => {
+        console.log('scan finished');
+        if(!connected){
+            console.log("not connected to wifi. Launching another scan");
+            btSerial.inquire();
+        }
+    })
     .on('found', function found(address, name) {
 
         console.log('Found: ' + address + ' with name ' + name);
 
+
         // find serial port channel
-        device.findSerialPortChannel(address, function (channel) {
+        btSerial.findSerialPortChannel(address, function(channel) {
             console.log('Found RFCOMM channel for serial port on %s: ', name, channel);
+            if(channel < 0) return;
 
             // make bluetooth connect to remote device
-            bluetooth.connect(address, channel, function (err, connection) {
+           btSerial.connect(address, channel, function() {
                 if (err) return console.error(err);
 
-                setLedToBluetooth();
+                led.setLedToBluetooth();
 
                 connection.delimiter = Buffer.from('\n', 'utf8');
                 connection.on('data', (buffer) => {
@@ -138,7 +108,7 @@ device
                     let wifi = JSON.parse(buffer.toString());
                     setUpWifi(wifi.ssid, wifi.psk);
 
-                    setLedToProcessing();
+                    led.setLedToProcessing();
                     connection.write(new Buffer('connection', 'utf-8'), () => {
                         console.log('wrote');
                     });
@@ -150,18 +120,21 @@ device
                     getStatus().then((isConnected) => {
                         console.log("Connected: " + isConnected);
 
-                        if (isConnected) setLedToConnected();
-                        else setLedToDisconnected();
+                        if (isConnected) led.setLedToConnected();
+                        else led.setLedToDisconnected();
 
                     });
                 });
+            }, function () {
+                console.log('cannot connect');
+                btSerial.close();
             });
 
         });
 
     });
 
-device.scan();
+btSerial.inquire();*/
 
 const senderId = fs.readFileSync('fmc-server-id').toString();
 if (!senderId) {
@@ -193,11 +166,36 @@ if (!senderId) {
     getStatus().then((isConnected) => {
         console.log("Connected: " + isConnected);
 
-        if (isConnected) setLedToConnected();
-        else setLedToDisconnected();
+        if (isConnected) led.setLedToConnected();
+        else led.setLedToDisconnected();
 
-        moveServoToStart()
+        led.moveServoToStart()
     });
+
+    setInterval(() => {
+        let wifi = new Wifi();
+        console.log("Checking WiFi & Server connection ...");
+
+        wifi.getState()
+            .then(isConnected => {
+                console.log(isConnected ? "WiFi & Server connected" : "Unhable to connect")
+
+                if (isConnected) led.setLedToConnected();
+                else led.setLedToDisconnected();
+
+                if(connected != isConnected) {
+                    if (isConnected) led.moveServoToStart();
+                else led.moveServoToNotConnected();
+
+                }
+                connected = isConnected
+            }).catch(
+                (err) => {
+                    console.log(err);
+                    //return false
+                });
+
+    }, 2*60*1000);
 
     await listen({...credentials, persistentIds}, onNotification);
 
@@ -222,13 +220,19 @@ function onNotification({notification, persistentId}) {
 
     if (date.getTime() <= notifDate.getTime()) {
 
-        moveServoToEnd();
+        led.moveServoToEnd();
 
         setTimeout(() => {
-            moveServoToStart()
+            led.moveServoToStart()
         }, 3000)
     }
 }
+
+
+led.moveServoToEnd();
+setTimeout(() => {
+    led.moveServoToStart()
+}, 100);
 
 http.createServer(function (req, res) {
 
@@ -236,5 +240,9 @@ http.createServer(function (req, res) {
     res.write('Hello World!');
     res.end();
 
+    led.moveServoToEnd();
+    setTimeout(() => {  
+        led.moveServo(12.5);
+    }, 1000);
 
 }).listen(3000);
